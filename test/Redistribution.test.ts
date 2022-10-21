@@ -757,10 +757,10 @@ describe('Redistribution', function () {
           const sr = await ethers.getContract('StakeRegistry');
 
           //node_2 stake is preserved and not frozen
-          expect(await sr.usableStakeOfOverlay(overlay_2)).to.be.eq(stakeAmount_2);
+          expect(await sr.usableStakeOfOverlay(overlay_2, 2*roundLength)).to.be.eq(stakeAmount_2);
 
           //node_1 is frozen but not slashed
-          expect(await sr.usableStakeOfOverlay(overlay_1)).to.be.eq(0);
+          expect(await sr.usableStakeOfOverlay(overlay_1, 2*roundLength)).to.be.eq(0);
         });
 
         it('if both reveal, should select correct winner', async function () {
@@ -812,10 +812,10 @@ describe('Redistribution', function () {
           const sr = await ethers.getContract('StakeRegistry');
 
           //node_1 stake is preserved and not frozen
-          expect(await sr.usableStakeOfOverlay(overlay_1)).to.be.eq(stakeAmount_1);
+          expect(await sr.usableStakeOfOverlay(overlay_1, 2*roundLength)).to.be.eq(stakeAmount_1);
 
           //node_2 stake is preserved and not frozen
-          expect(await sr.usableStakeOfOverlay(overlay_2)).to.be.eq(stakeAmount_2);
+          expect(await sr.usableStakeOfOverlay(overlay_2, 2*roundLength)).to.be.eq(stakeAmount_2);
 
           await expect(r_node_2.claim()).to.be.revertedWith(errors.claim.alreadyClaimed);
         });
@@ -836,9 +836,9 @@ describe('Redistribution', function () {
           const sr = await ethers.getContract('StakeRegistry');
 
           //node_1 stake is preserved and not frozen
-          expect(await sr.usableStakeOfOverlay(overlay_1)).to.be.eq(stakeAmount_1);
+          expect(await sr.usableStakeOfOverlay(overlay_1, 2*roundLength)).to.be.eq(stakeAmount_1);
           //node_2 stake is preserved and not frozen
-          expect(await sr.usableStakeOfOverlay(overlay_2)).to.be.eq(stakeAmount_2);
+          expect(await sr.usableStakeOfOverlay(overlay_2, 2*roundLength)).to.be.eq(stakeAmount_2);
         });
       });
     });

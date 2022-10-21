@@ -157,8 +157,25 @@ describe('Staking', function () {
       const staked = await sr_staker_0.stakes(overlay_0);
       expect(staked.overlay).to.be.eq(overlay_0);
       expect(staked.owner).to.be.eq(staker_0);
-      expect(staked.stakeAmount).to.be.eq(stakeAmount_0);
+      expect(staked.stakeAmount).to.be.eq(0);
+      expect(staked.pendingStakeIncrease).to.be.eq(stakeAmount_0);
       expect(staked.lastUpdatedBlockNumber).to.be.eq(updatedBlockNumber);
+
+      // without advancing block, we should still have original (ie. 0) stake amount
+      expect(await sr_staker_0.usableStakeOfOverlay(overlay_0, 0)).to.be.eq(0);
+
+      // advance by a block as lastUpdatedBlockNumber must be > block.number otherwise frozen
+      await mineNBlocks(1)
+
+      // check usableStakeOfOverlay
+      const usableStakeOfOverlayNoDelay = await sr_staker_0.usableStakeOfOverlay(overlay_0, 0);
+      const usableStakeOfOverlayDelay = await sr_staker_0.usableStakeOfOverlay(overlay_0, 2*152);
+      expect(usableStakeOfOverlayNoDelay).to.be.eq(stakeAmount_0);
+      expect(usableStakeOfOverlayDelay).to.be.eq(0);
+      // fast forward the delay
+      await mineNBlocks(2*152 + 1);
+      const usableStakeOfOverlayDelayAfter = await sr_staker_0.usableStakeOfOverlay(overlay_0, 2*152);
+      expect(usableStakeOfOverlayDelayAfter).to.be.eq(stakeAmount_0);
 
       //tokens are successfully transferred
       expect(await token.balanceOf(stakeRegistry.address)).to.be.eq(stakeAmount_0);
@@ -191,12 +208,26 @@ describe('Staking', function () {
         .to.emit(stakeRegistry, 'StakeUpdated')
         .withArgs(overlay_0, updatedStakeAmount, staker_0, lastUpdatedBlockNumber + 1);
 
-      //correct values are persisted
+      //correct values are persisted (should all be in pendingStakeIncrease due no commit call)
       const staked = await stakeRegistry.stakes(overlay_0);
       expect(staked.overlay).to.be.eq(overlay_0);
       expect(staked.owner).to.be.eq(staker_0);
-      expect(staked.stakeAmount).to.be.eq(updatedStakeAmount);
+      expect(staked.stakeAmount).to.be.eq(0);
+      expect(staked.pendingStakeIncrease).to.be.eq(updatedStakeAmount);
       expect(staked.lastUpdatedBlockNumber).to.be.eq(lastUpdatedBlockNumber + 1);
+
+      // advance a block
+      await mineNBlocks(1);
+
+      // check usableStakeOfOverlay
+      const usableStakeOfOverlayNoDelay = await sr_staker_0.usableStakeOfOverlay(overlay_0, 0);
+      const usableStakeOfOverlayDelay = await sr_staker_0.usableStakeOfOverlay(overlay_0, 2*152);
+      expect(usableStakeOfOverlayNoDelay).to.be.eq(updatedStakeAmount);
+      expect(usableStakeOfOverlayDelay).to.be.eq(0);
+      // fast forward the delay
+      await mineNBlocks(2*152 + 1);
+      const usableStakeOfOverlayDelayAfter = await sr_staker_0.usableStakeOfOverlay(overlay_0, 2*152);
+      expect(usableStakeOfOverlayDelayAfter).to.be.eq(updatedStakeAmount);
 
       // //tokens are successfully transferred
       expect(await token.balanceOf(stakeRegistry.address)).to.be.eq(updatedStakeAmount);
@@ -217,8 +248,23 @@ describe('Staking', function () {
       const staked = await stakeRegistry.stakes(overlay_1);
       expect(staked.overlay).to.be.eq(overlay_1);
       expect(staked.owner).to.be.eq(staker_1);
-      expect(staked.stakeAmount).to.be.eq(stakeAmount_1);
+      expect(staked.stakeAmount).to.be.eq(0);
+      expect(staked.pendingStakeIncrease).to.be.eq(stakeAmount_1);
       expect(staked.lastUpdatedBlockNumber).to.be.eq(lastUpdatedBlockNumber);
+
+      // advance a block
+      await mineNBlocks(1);
+
+      // check usableStakeOfOverlay
+      const usableStakeOfOverlayNoDelay = await sr_staker_0.usableStakeOfOverlay(overlay_1, 0);
+      const usableStakeOfOverlayDelay = await sr_staker_0.usableStakeOfOverlay(overlay_1, 2*152);
+      expect(usableStakeOfOverlayNoDelay).to.be.eq(stakeAmount_1);
+      expect(usableStakeOfOverlayDelay).to.be.eq(0);
+      // fast forward the delay
+      await mineNBlocks(2*152 + 1);
+      const usableStakeOfOverlayDelayAfter = await sr_staker_0.usableStakeOfOverlay(overlay_1, 2*152);
+      expect(usableStakeOfOverlayDelayAfter).to.be.eq(stakeAmount_1);
+
     });
 
     // should update a stake correctlly if funds are available a second time

@@ -159,7 +159,7 @@ async function nPlayerGames(nodes: string[], stakes: string[], trials: number) {
     //stakes are preserved
     for (let i = 0; i < nodes.length; i++) {
       const overlay = await createOverlay(nodes[i], '0x00', nonce);
-      expect(await sr.usableStakeOfOverlay(overlay)).to.be.eq(stakes[i]);
+      expect(await sr.usableStakeOfOverlay(overlay, 2*roundLength)).to.be.eq(stakes[i]);
     }
 
     await mineNBlocks(phaseLength * 2 - nodes.length);
