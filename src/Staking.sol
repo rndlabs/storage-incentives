@@ -125,17 +125,20 @@ contract StakeRegistry is AccessControl, Pausable {
 
         if (stake.owner != address(0)) {
             require(overlayNotFrozen(overlay), "overlay currently frozen");
+
+            // block.number - 1 required to prevent front running the freeze invariant
+            stake.lastUpdatedBlockNumber = block.number - 1;
         } else {
             stake.overlay = overlay;
             stake.owner = _owner;
+            stake.lastUpdatedBlockNumber = block.number;
         }
 
         stake.pendingStakeIncrease += amount;
-        stake.lastUpdatedBlockNumber = block.number;
 
         require(ERC20(bzzToken).transferFrom(msg.sender, address(this), amount), "failed transfer");
 
-        emit StakeUpdated(overlay, stake.stakeAmount + stake.pendingStakeIncrease, _owner, block.number);
+        emit StakeUpdated(overlay, stake.stakeAmount + stake.pendingStakeIncrease, _owner, stake.lastUpdatedBlockNumber);
     }
 
     /**

@@ -206,7 +206,7 @@ describe('Staking', function () {
       // event is emitted
       await expect(sr_staker_0.depositStake(staker_0, nonce_0, updateStakeAmount))
         .to.emit(stakeRegistry, 'StakeUpdated')
-        .withArgs(overlay_0, updatedStakeAmount, staker_0, lastUpdatedBlockNumber + 1);
+        .withArgs(overlay_0, updatedStakeAmount, staker_0, lastUpdatedBlockNumber);
 
       //correct values are persisted (should all be in pendingStakeIncrease due no commit call)
       const staked = await stakeRegistry.stakes(overlay_0);
@@ -214,7 +214,7 @@ describe('Staking', function () {
       expect(staked.owner).to.be.eq(staker_0);
       expect(staked.stakeAmount).to.be.eq(0);
       expect(staked.pendingStakeIncrease).to.be.eq(updatedStakeAmount);
-      expect(staked.lastUpdatedBlockNumber).to.be.eq(lastUpdatedBlockNumber + 1);
+      expect(staked.lastUpdatedBlockNumber).to.be.eq(lastUpdatedBlockNumber);
 
       // advance a block
       await mineNBlocks(1);
@@ -371,7 +371,7 @@ describe('Staking', function () {
       const newUpdatedBlockNumber = (await getBlockNumber()) + 2;
       await expect(sr_staker_0.depositStake(staker_0, nonce_0, stakeAmount_0))
         .to.emit(stakeRegistry, 'StakeUpdated')
-        .withArgs(overlay_0, twice_stakeAmount_0, staker_0, newUpdatedBlockNumber);
+        .withArgs(overlay_0, twice_stakeAmount_0, staker_0, newUpdatedBlockNumber - 1);
     });
 
     // should we emit an event here?
@@ -445,7 +445,7 @@ describe('Staking', function () {
       await mintAndApprove(staker_0, stakeRegistry.address, updateStakeAmount);
       await expect(sr_staker_0.depositStake(staker_0, nonce_0, updateStakeAmount))
         .to.emit(stakeRegistry, 'StakeUpdated')
-        .withArgs(overlay_0, updatedStakeAmount, staker_0, newUpdatedBlockNumber);
+        .withArgs(overlay_0, updatedStakeAmount, staker_0, newUpdatedBlockNumber - 1);
     });
 
     // it('should allow stake withdrawal while paused', async function () {});
