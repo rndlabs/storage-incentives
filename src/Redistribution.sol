@@ -331,7 +331,7 @@ contract Redistribution is AccessControl, Pausable {
     function isParticipatingInUpcomingRound(bytes32 overlay, uint8 depth) public view returns (bool){
         require(currentPhaseClaim() || currentPhaseCommit(), "not determined for upcoming round yet");
         require(Stakes.lastUpdatedBlockNumberOfOverlay(overlay) < block.number - 2 * roundLength, "stake updated recently");
-        require(Stakes.usableStakeOfOverlay(overlay, 2*roundLength) >= minimumStake, "stake amount does not meet minimum");
+        require(Stakes.usableStakeOfOverlay(overlay, 2*roundLength) >= minimumStake, "usable stake amount does not meet minimum");
         return inProximity(overlay, currentRoundAnchor(), depth);
     }
 
