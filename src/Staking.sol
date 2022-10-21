@@ -206,12 +206,10 @@ contract StakeRegistry is AccessControl, Pausable {
      * @notice Etches a pending stake increase to stakeAmount for the overlay.
      * @dev can only be called by the redistributor
      * @param overlay The overlay to add the pending stake increase to.
-     * @param minDelay The minimum delay in blocks to wait before the pending stake increase can be applied.
      */
-    function etchPendingStake(bytes32 overlay, uint256 minDelay) external {
+    function etchPendingStake(bytes32 overlay) external {
         require(hasRole(REDISTRIBUTOR_ROLE, msg.sender), "only redistributor can add pending stake");
         require(overlayNotFrozen(overlay), "overlay frozen");
-        require(block.number > stakes[overlay].lastUpdatedBlockNumber + minDelay, "too soon");
 
         uint256 pendingStakeIncrease = stakes[overlay].pendingStakeIncrease;
         stakes[overlay].pendingStakeIncrease = 0;
