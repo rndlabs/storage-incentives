@@ -141,11 +141,14 @@ contract Redistribution is AccessControl, Pausable {
     function commit(bytes32 _obfuscatedHash, bytes32 _overlay) external whenNotPaused {
 
         require(currentPhaseCommit(), "not in commit phase");
-        uint256 nstake = Stakes.stakeOfOverlay(_overlay);
+        uint256 nstake = Stakes.usableStakeOfOverlay(_overlay, 2*roundLength);
         require(nstake >= minimumStake, "node must have staked at least minimum stake");
         require(Stakes.ownerOfOverlay(_overlay) == msg.sender, "owner must match sender to be able to commit");
 
-        require(Stakes.lastUpdatedBlockNumberOfOverlay(_overlay) < block.number - 2*roundLength, "node must have staked before last round");
+        require(
+            Stakes.lastUpdatedBlockNumberOfOverlay(_overlay) < block.number - 2*roundLength,
+            "node must have staked before last round"
+        );
 
     	uint256 cr = currentRound();
 
@@ -169,6 +172,9 @@ contract Redistribution is AccessControl, Pausable {
             revealed: false
         }));
 
+        if (nstake != Stakes.stakeOfOverlay(_overlay)) {
+            Stakes.etchPendingStake(_overlay, 2*roundLength);
+        }
     }
 
     function currentSeed() public view returns (bytes32) {
@@ -325,7 +331,7 @@ contract Redistribution is AccessControl, Pausable {
     function isParticipatingInUpcomingRound(bytes32 overlay, uint8 depth) public view returns (bool){
         require(currentPhaseClaim() || currentPhaseCommit(), "not determined for upcoming round yet");
         require(Stakes.lastUpdatedBlockNumberOfOverlay(overlay) < block.number - 2 * roundLength, "stake updated recently");
-        require(Stakes.stakeOfOverlay(overlay) >= minimumStake, "stake amount does not meet minimum");
+        require(Stakes.usableStakeOfOverlay(overlay, 2*roundLength) >= minimumStake, "stake amount does not meet minimum");
         return inProximity(overlay, currentRoundAnchor(), depth);
     }
 

@@ -31,11 +31,11 @@ contract StakeRegistry is AccessControl, Pausable {
         //
         uint256 stakeAmount;
         //
+        uint256 pendingStakeIncrease;
+        //
         address owner;
         //
         uint256 lastUpdatedBlockNumber;
-        //
-        bool isValue;
     }
 
     // The role allowed to pause
@@ -70,8 +70,16 @@ contract StakeRegistry is AccessControl, Pausable {
         return stakes[overlay].stakeAmount;
     }
 
-    function usableStakeOfOverlay(bytes32 overlay) public view returns (uint256) {
-        return overlayNotFrozen(overlay) ? stakes[overlay].stakeAmount : 0;
+    function usableStakeOfOverlay(bytes32 overlay, uint256 time) public view returns (uint256) {
+        if (overlayNotFrozen(overlay)) {
+            return (
+                block.number > stakes[overlay].lastUpdatedBlockNumber + time ? 
+                    stakes[overlay].stakeAmount + stakes[overlay].pendingStakeIncrease : 
+                    stakes[overlay].stakeAmount
+            );
+        } else {
+            return 0;
+        }
     }
 
     function lastUpdatedBlockNumberOfOverlay(bytes32 overlay) public view returns(uint256) {
@@ -113,27 +121,24 @@ contract StakeRegistry is AccessControl, Pausable {
 
         bytes32 overlay = keccak256(abi.encodePacked(_owner, reverse(NetworkId), nonce));
 
-        uint256 updatedAmount = amount;
+        Stake storage stake = stakes[overlay];
 
-        if (stakes[overlay].isValue) {
+        if (stake.owner != address(0)) {
             require(overlayNotFrozen(overlay), "overlay currently frozen");
-            updatedAmount = amount + stakes[overlay].stakeAmount;
+        } else {
+            stake.overlay = overlay;
+            stake.owner = _owner;
         }
+
+        stake.pendingStakeIncrease += amount;
+        stake.lastUpdatedBlockNumber = block.number;
 
         require(ERC20(bzzToken).transferFrom(msg.sender, address(this), amount), "failed transfer");
 
-        emit StakeUpdated(overlay, updatedAmount, _owner, block.number);
-
-        stakes[overlay] = Stake({
-            owner: _owner,
-            overlay: overlay,
-            stakeAmount: updatedAmount,
-            lastUpdatedBlockNumber: block.number,
-            isValue: true
-        });
+        emit StakeUpdated(overlay, stake.stakeAmount + stake.pendingStakeIncrease, _owner, block.number);
     }
 
-    /*
+    /**
      * @notice withdraw stake when staking contract paused
      * @dev can only be called by the owner specifying the associated overlay
      * @param overlay the overlay selected
@@ -142,12 +147,15 @@ contract StakeRegistry is AccessControl, Pausable {
     function withdrawFromStake(bytes32 overlay, uint256 amount) external whenPaused {
         require(stakes[overlay].owner == msg.sender, "only owner can withdraw stake");
         uint256 withDrawLimit = amount;
-        if (amount > stakes[overlay].stakeAmount) {
-            withDrawLimit = stakes[overlay].stakeAmount;
+        uint256 maxWithDrawLimit = stakes[overlay].stakeAmount + stakes[overlay].pendingStakeIncrease;
+
+        if (amount > maxWithDrawLimit) {
+            withDrawLimit = maxWithDrawLimit;
         }
 
-        if (withDrawLimit < stakes[overlay].stakeAmount) {
-            stakes[overlay].stakeAmount -= withDrawLimit;
+        if (withDrawLimit < maxWithDrawLimit) {
+            stakes[overlay].stakeAmount = 0;
+            stakes[overlay].pendingStakeIncrease = maxWithDrawLimit - withDrawLimit;
             stakes[overlay].lastUpdatedBlockNumber = block.number;
             require(ERC20(bzzToken).transfer(msg.sender, withDrawLimit), "failed withdrawal");
         } else {
@@ -156,7 +164,7 @@ contract StakeRegistry is AccessControl, Pausable {
         }
     }
 
-    /*
+    /**
      * @notice freeze an existing stake
      * @dev can only be called by the redistributor
      * @param overlay the overlay selected
@@ -164,11 +172,10 @@ contract StakeRegistry is AccessControl, Pausable {
      */
     function freezeDeposit(bytes32 overlay, uint256 time) external {
         require(hasRole(REDISTRIBUTOR_ROLE, msg.sender), "only redistributor can freeze stake");
+        require(stakes[overlay].owner != address(0), "overlay does not exist");
 
-        if ( stakes[overlay].isValue ) {
-            emit StakeFrozen(overlay, time);
-            stakes[overlay].lastUpdatedBlockNumber = block.number + time;
-        }
+        emit StakeFrozen(overlay, time);
+        stakes[overlay].lastUpdatedBlockNumber = block.number + time;
     }
 
     /**
@@ -180,19 +187,37 @@ contract StakeRegistry is AccessControl, Pausable {
      */
     function slashDeposit(bytes32 overlay, uint256 amount) external {
         require(hasRole(REDISTRIBUTOR_ROLE, msg.sender), "only redistributor can slash stake");
+        require(stakes[overlay].owner != address(0), "overlay does not exist");
+
         emit StakeSlashed(overlay, amount);
-        if ( stakes[overlay].isValue ) {
-            if ( stakes[overlay].stakeAmount > amount ) {
-                stakes[overlay].stakeAmount -= amount;
-                stakes[overlay].lastUpdatedBlockNumber = block.number;
-                } else {
-                delete stakes[overlay];
-            }
+
+        if ( stakes[overlay].stakeAmount > amount ) {
+            stakes[overlay].stakeAmount -= amount;
+            stakes[overlay].lastUpdatedBlockNumber = block.number;
+        } else {
+            delete stakes[overlay];
         }
     }
 
     /**
-     * @notice Pause the contract. The contract is provably stopped by renouncing the pauser role and the admin role after pausing
+     * @notice Etches a pending stake increase to stakeAmount for the overlay.
+     * @dev can only be called by the redistributor
+     * @param overlay The overlay to add the pending stake increase to.
+     * @param minDelay The minimum delay in blocks to wait before the pending stake increase can be applied.
+     */
+    function etchPendingStake(bytes32 overlay, uint256 minDelay) external {
+        require(hasRole(REDISTRIBUTOR_ROLE, msg.sender), "only redistributor can add pending stake");
+        require(overlayNotFrozen(overlay), "overlay frozen");
+        require(block.number > stakes[overlay].lastUpdatedBlockNumber + minDelay, "too soon");
+
+        uint256 pendingStakeIncrease = stakes[overlay].pendingStakeIncrease;
+        stakes[overlay].pendingStakeIncrease = 0;
+        stakes[overlay].stakeAmount += pendingStakeIncrease;
+    }
+
+    /**
+     * @notice Pause the contract. The contract is provably stopped by renouncing the pauser role and the admin role 
+     *         after pausing
      * @dev can only be called by the pauser when not paused
      */
     function pause() public {
