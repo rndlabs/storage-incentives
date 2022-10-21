@@ -172,7 +172,7 @@ contract Redistribution is AccessControl, Pausable {
             revealed: false
         }));
 
-        if (nstake != Stakes.stakeOfOverlay(_overlay)) {
+        if (nstake > Stakes.stakeOfOverlay(_overlay)) {
             Stakes.etchPendingStake(_overlay, 2*roundLength);
         }
     }
